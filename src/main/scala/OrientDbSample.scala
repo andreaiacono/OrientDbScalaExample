@@ -28,11 +28,15 @@ object OrientDbSample extends App {
             company.createProperty("name", OType.STRING)
             company.createProperty("revenue", OType.LONG)
 
+            val product: OrientVertexType = graph.createVertexType("Product")
+            product.createProperty("name", OType.STRING)
+
             // we now extend the Edge class for a "Work" relationship
             // between Person and Company
             val work: OrientEdgeType = graph.createEdgeType(WorkEdgeLabel)
             work.createProperty("startDate", OType.DATE)
             work.createProperty("endDate", OType.DATE)
+            work.createProperty("projects", OType.LINKSET)
         }
         else {
 
@@ -55,10 +59,15 @@ object OrientDbSample extends App {
         // creates a Company
         val acme: Vertex = graph.addVertex("class:Company", "name", "ACME", "revenue", "10000000")
 
+        // creates a couple of projects
+        val acmeGlue = graph.addVertex("class:Project", "name", "ACME Glue")
+        val acmeRocket = graph.addVertex("class:Project", "name", "ACME Rocket")
+
         // creates edge JohnDoe worked for ACME
         val johnDoeAcme: Edge = graph.addEdge(null, johnDoe, acme, WorkEdgeLabel)
         johnDoeAcme.setProperty("startDate", "2010-01-01")
         johnDoeAcme.setProperty("endDate", "2013-04-21")
+        johnDoeAcme.setProperty("projects", Set(acmeGlue, acmeRocket))
 
         // another way to create an edge, starting from the source vertex
         val johnSmithAcme: Edge = johnSmith.addEdge(WorkEdgeLabel, acme)
@@ -75,11 +84,16 @@ object OrientDbSample extends App {
             // gets the person
             val person = v.asInstanceOf[OrientVertex]
 
-            // checks if the out edge Work contains the "endDate" property
+            // gets the "Work" edge
             val workEdgeIterator = person.getEdges(Direction.OUT, WorkEdgeLabel).iterator()
-            val status = if (!workEdgeIterator.isEmpty && workEdgeIterator.next().getProperty("endDate") != null) "retired" else "active"
+            val edge = workEdgeIterator.next()
 
-            println(s"Name: ${person.getProperty("lastName")}, ${person.getProperty("firstName")} [${status}]")
+            // and retrieves info to print
+            val status = if (edge.getProperty("endDate") != null) "retired" else "active"
+            val projects = if (edge.getProperty("projects") != null)
+              edge.getProperty("projects").asInstanceOf[Set[Vertex]].map(v=>v.getProperty[String]("name")).mkString(", ") else "Any"
+
+            println(s"Name: ${person.getProperty("lastName")}, ${person.getProperty("firstName")} [${status}]. Worked on: ${projects}.")
         })
     }
     finally {
