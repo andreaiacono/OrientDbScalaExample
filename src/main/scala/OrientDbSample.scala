@@ -11,11 +11,12 @@ object OrientDbSample extends App {
 
     // opens the DB (if not existing, it will create it)
     val uri: String = "plocal:target/database/scala_sample"
-    val graph: OrientGraph = new OrientGraph(uri)
+    val factory: OrientGraphFactory = new OrientGraphFactory(uri)
+    val graph: OrientGraph = factory.getTx()
 
     try {
 
-        // if the database does not contain the classes we need (i.e. it was just created),
+        // if the database does not contain the classes we need (it was just created),
         // then adds them
         if (graph.getVertexType("Person") == null) {
 
@@ -28,8 +29,8 @@ object OrientDbSample extends App {
             company.createProperty("name", OType.STRING)
             company.createProperty("revenue", OType.LONG)
 
-            val product: OrientVertexType = graph.createVertexType("Project")
-            product.createProperty("name", OType.STRING)
+            val project: OrientVertexType = graph.createVertexType("Project")
+            project.createProperty("name", OType.STRING)
 
             // we now extend the Edge class for a "Work" relationship
             // between Person and Company
@@ -60,8 +61,8 @@ object OrientDbSample extends App {
         val acme: Vertex = graph.addVertex("class:Company", "name", "ACME", "revenue", "10000000")
 
         // creates a couple of projects
-        val acmeGlue = graph.addVertex("class:Project", "name", "ACME Glue")
-        val acmeRocket = graph.addVertex("class:Project", "name", "ACME Rocket")
+        val acmeGlue: Vertex = graph.addVertex("class:Project", "name", "ACME Glue")
+        val acmeRocket: Vertex = graph.addVertex("class:Project", "name", "ACME Rocket")
 
         // creates edge JohnDoe worked for ACME
         val johnDoeAcme: Edge = graph.addEdge(null, johnDoe, acme, WorkEdgeLabel)
@@ -82,18 +83,28 @@ object OrientDbSample extends App {
         res.foreach(v => {
 
             // gets the person
-            val person = v.asInstanceOf[OrientVertex]
+            val person : OrientVertex = v.asInstanceOf[OrientVertex]
 
             // gets the "Work" edge
             val workEdgeIterator = person.getEdges(Direction.OUT, WorkEdgeLabel).iterator()
             val edge = workEdgeIterator.next()
 
-            // and retrieves info to print
+            // retrieves worker's info
             val status = if (edge.getProperty("endDate") != null) "retired" else "active"
-            val projects = if (edge.getProperty("projects") != null)
-              edge.getProperty("projects").asInstanceOf[Set[Vertex]].map(v=>v.getProperty[String]("name")).mkString(", ") else "Any"
+            val projects =
+              if (edge.getProperty("projects") != null)
+                edge
+                  .getProperty("projects")
+                  .asInstanceOf[Set[Vertex]]
+                  .map(v=>v.getProperty[String]("name"))
+                  .mkString(", ")
+              else
+                "Any project"
 
-            println(s"Name: ${person.getProperty("lastName")}, ${person.getProperty("firstName")} [${status}]. Worked on: ${projects}.")
+            // and prints them
+            println(s"Name: ${person.getProperty("lastName")}, " +
+                          s"${person.getProperty("firstName")} " +
+                          s"[${status}]. Worked on: ${projects}.")
         })
     }
     finally {
